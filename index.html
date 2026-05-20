@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ryujinx Remote Client</title>
+    <style>
+        :root {
+            --bg: #0b0b0b;
+            --panel: #1a1a1a;
+            --panel-border: #333;
+            --text: #e0e0e0;
+            --muted: #888;
+            --accent: #4a90e2;
+            --danger: #ff4d4d;
+            --success: #2ecc71;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        /* --- Server Manager Styles --- */
+        #server-manager {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            overflow-y: auto;
+        }
+
+        .manager-card {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            width: min(90vw, 600px);
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h1 { margin-top: 0; font-weight: 300; letter-spacing: 1px; }
+
+        .server-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: #252525;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        button:active { transform: scale(0.98); }
+
+        .btn-add { background: var(--accent); color: #fff; padding: 0 20px; }
+
+        .server-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .server-item {
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .server-item:hover { border-color: var(--accent); }
+
+        .server-info { display: flex; flex-direction: column; gap: 4px; }
+        .server-addr { font-weight: 600; font-size: 1.05rem; }
+        .server-status { font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .status-offline { background: var(--danger); }
+        .status-checking { background: #888; }
+
+        .server-actions { display: flex; gap: 8px; }
+        .btn-remove { background: #333; color: #ff8888; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .btn-remove:hover { background: #442222; }
+
+        /* --- Stream View Styles --- */
+        #stream-container {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: none;
+            z-index: 500;
+        }
+
+        #stream-container.visible {
+            display: block !important;
+        }
+
+        #stream-canvas, #stream-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            touch-action: none;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 600;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.3);
+            pointer-events: auto;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        /* --- Mobile Controls Styles --- */
+        .mobile-controls {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 550;
+            user-select: none;
+            -webkit-user-select: none;
+            display: none;
+        }
+
+        .mobile-controls.visible {
+            display: block;
+        }
+
+        .mobile-btn {
+            pointer-events: auto;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.1rem;
+            touch-action: none;
+            width: 54px;
+            height: 54px;
+            position: absolute;
+            transition: background 0.1s, transform 0.1s;
+        }
+
+        .mobile-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0.92);
+        }
+
+        .joystick-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 130px;
+            height: 130px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+            touch-action: none;
+        }
+
+        .joystick-knob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 54px;
+            height: 54px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            font-weight: bold;
+        }
+
+        .stick-click-btn {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 551;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: #fff;
+            pointer-events: auto;
+        }
+        .stick-click-l { top: -20px; right: -10px; }
+        .stick-click-r { top: -20px; left: -10px; }
+
+        .dpad-container {
+            position: absolute;
+            bottom: 170px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+        }
+
+        .dpad-btn { width: 40px; height: 40px; border-radius: 8px; }
+        .dpad-up { top: 0; left: 50%; transform: translateX(-50%); }
+        .dpad-down { bottom: 0; left: 50%; transform: translateX(-50%); }
+        .dpad-left { left: 0; top: 50%; transform: translateY(-50%); }
+        .dpad-right { right: 0; top: 50%; transform: translateY(-50%); }
+
+        .abxy-container {
+            position: absolute;
+            bottom: 170px;
+            right: 20px;
+            width: 140px;
+            height: 140px;
+        }
+
+        .abxy-btn { width: 46px; height: 46px; }
+
+        .joystick-container-r {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 130px;
+            height: 130px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        .btn-a { right: 0; top: 50%; transform: translateY(-50%); }
+        .btn-b { bottom: 0; left: 50%; transform: translateX(-50%); }
+        .btn-x { top: 0; left: 50%; transform: translateX(-50%); }
+        .btn-y { left: 0; top: 50%; transform: translateY(-50%); }
+
+        .shoulder-container-l { position: absolute; top: 60px; left: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .shoulder-container-r { position: absolute; top: 60px; right: 15px; display: flex; flex-direction: column; gap: 10px; }
+
+        .shoulder-btn { width: 50px; height: 38px; border-radius: 10px; font-size: 0.85rem; position: static; transform: none; }
+
+        .system-container {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 130px;
+            pointer-events: none;
+        }
+
+        .system-btn { pointer-events: auto; width: 38px; height: 38px; border-radius: 8px; font-size: 1.1rem; position: static; transform: none; }
+
+        .mobile-toggle-btn {
+            position: fixed;
+            left: 14px;
+            bottom: 14px;
+            z-index: 560;
+            background: rgba(0,0,0,0.52);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 999px;
+            padding: 10px 14px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            pointer-events: auto;
+        }
+
+        .toggle-controls {
+            position: fixed;
+            right: 14px;
+            bottom: 14px;
+            z-index: 560;
+            background: rgba(0,0,0,0.52);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 999px;
+            padding: 10px 14px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            pointer-events: auto;
+        }
+
+        .floating-controls {
+            position: fixed;
+            top: 64px;
+            right: 14px;
+            z-index: 570;
+            width: min(92vw, 430px);
+            max-height: calc(100vh - 92px);
+            background: rgba(26, 26, 26, 0.96);
+            border: 1px solid #444;
+            border-radius: 16px;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+            display: none;
+        }
+
+        .floating-controls.visible { display: block; }
+
+        .controls-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .controls-body {
+            padding: 12px 14px 14px;
+            overflow: auto;
+            max-height: calc(100vh - 150px);
+        }
+
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.9rem; }
+        th, td { padding: 8px; border: 1px solid rgba(255,255,255,0.08); text-align: left; }
+        input.key-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.06); color: #fff; border: 1px solid rgba(255,255,255,0.16); border-radius: 6px; padding: 6px; text-align: center; }
+
+        /* SW Keyboard Modal */
+        #swkbd-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 1000; display: none; }
+        #swkbd-overlay.visible { display: flex; }
+        .swkbd-card { background: #1a1a1a; border: 1px solid #444; border-radius: 16px; padding: 24px; width: min(90vw, 480px); }
+    </style>
+</head>
+<body>
+
+    <div id="server-manager">
+        <div class="manager-card">
+            <h1>Ryujinx Remote Client</h1>
+            <div class="server-input-group">
+                <input type="text" id="new-server-addr" placeholder="Server address (e.g., 192.168.1.10:8787)" />
+                <button class="btn-add" id="add-server-btn">ADD</button>
+            </div>
+            <div id="server-list" class="server-list"></div>
+        </div>
+    </div>
+
+    <div id="stream-container">
+        <button class="back-btn" id="disconnect-btn">← Back to Servers</button>
+        <canvas id="stream-canvas"></canvas>
+
+        <button id="toggleControls" class="toggle-controls">⌨</button>
+        <button id="toggleMobile" class="mobile-toggle-btn">🎮</button>
+
+        <!-- Mobile Controls Panel -->
+        <div id="mobileControls" class="mobile-controls">
+            <div class="shoulder-container-l">
+                <div class="mobile-btn shoulder-btn" data-key="ZL">ZL</div>
+                <div class="mobile-btn shoulder-btn" data-key="L">L</div>
+            </div>
+            <div class="shoulder-container-r">
+                <div class="mobile-btn shoulder-btn" data-key="ZR">ZR</div>
+                <div class="mobile-btn shoulder-btn" data-key="R">R</div>
+            </div>
+            <div class="system-container">
+                <div class="mobile-btn system-btn" data-key="Minus">-</div>
+                <div class="mobile-btn system-btn" data-key="Plus">+</div>
+            </div>
+            <div class="dpad-container">
+                <div class="mobile-btn dpad-btn dpad-up" data-key="DpadUp">▲</div>
+                <div class="mobile-btn dpad-btn dpad-down" data-key="DpadDown">▼</div>
+                <div class="mobile-btn dpad-btn dpad-left" data-key="DpadLeft">◀</div>
+                <div class="mobile-btn dpad-btn dpad-right" data-key="DpadRight">▶</div>
+            </div>
+            <div id="joystickL" class="joystick-container">
+                <div class="joystick-knob">L</div>
+                <div class="mobile-btn stick-click-btn stick-click-l" data-key="LStick">LS</div>
+            </div>
+            <div id="joystickR" class="joystick-container-r">
+                <div class="joystick-knob">R</div>
+                <div class="mobile-btn stick-click-btn stick-click-r" data-key="RStick">RS</div>
+            </div>
+            <div class="abxy-container">
+                <div class="mobile-btn abxy-btn btn-a" data-key="A">A</div>
+                <div class="mobile-btn abxy-btn btn-b" data-key="B">B</div>
+                <div class="mobile-btn abxy-btn btn-x" data-key="X">X</div>
+                <div class="mobile-btn abxy-btn btn-y" data-key="Y">Y</div>
+            </div>
+        </div>
+
+        <div id="controlsPanel" class="floating-controls">
+            <div class="controls-header">
+                <h3>Input Configuration</h3>
+                <button id="hideControls" style="background:transparent; color:#fff; cursor:pointer;">Hide</button>
+            </div>
+            <div class="controls-body">
+                <table>
+                    <thead><tr><th>Button</th><th>Key</th></tr></thead>
+                    <tbody id="keyConfigBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Software Keyboard Modal -->
+    <div id="swkbd-overlay">
+        <div class="swkbd-card">
+            <h2 id="swkbd-header">Software Keyboard</h2>
+            <p id="swkbd-guide"></p>
+            <input type="text" id="swkbd-input" style="width:100%; box-sizing:border-box; margin:10px 0; padding:12px; background:#000; border:1px solid #444; color:#fff;" />
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button id="swkbd-cancel" style="padding:10px 20px; background:#333; color:#fff;">Cancel</button>
+                <button id="swkbd-submit" style="padding:10px 20px; background:var(--accent); color:#fff;">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const serverListEl = document.getElementById('server-list');
+        const newServerInput = document.getElementById('new-server-addr');
+        const addServerBtn = document.getElementById('add-server-btn');
+        const streamContainer = document.getElementById('stream-container');
+        const serverManager = document.getElementById('server-manager');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const streamCanvas = document.getElementById('stream-canvas');
+        const mobileControlsEl = document.getElementById('mobileControls');
+        const controlsPanelEl = document.getElementById('controlsPanel');
+
+        let servers = JSON.parse(localStorage.getItem('ryu_servers') || '[]');
+        let currentServer = null;
+        let ws = null;
+        let videoDecoder = null;
+        let streamImage = null;
+        let useH264 = false;
+        let audioCtx = null;
+        let nextStartTime = 0;
+
+        let renderState = {
+            videoWidth: 1280,
+            videoHeight: 720,
+            drawnWidth: window.innerWidth,
+            drawnHeight: window.innerHeight,
+            offsetX: 0,
+            offsetY: 0
+        };
+        const SAMPLE_RATE = 48000;
+        const CHANNELS = 2;
+
+        let keyMap = {
+            'A': 'KeyL', 'B': 'KeyK', 'X': 'KeyI', 'Y': 'KeyJ',
+            'L': 'KeyQ', 'R': 'KeyE', 'ZL': 'Digit1', 'ZR': 'Digit3',
+            'Plus': 'Enter', 'Minus': 'Backspace',
+            'DpadUp': 'ArrowUp', 'DpadDown': 'ArrowDown', 'DpadLeft': 'ArrowLeft', 'DpadRight': 'ArrowRight',
+            'LStickUp': 'KeyW', 'LStickDown': 'KeyS', 'LStickLeft': 'KeyA', 'LStickRight': 'KeyD',
+            'LStick': 'KeyF',
+            'RStickUp': 'KeyI', 'RStickDown': 'KeyK', 'RStickLeft': 'KeyJ', 'RStickRight': 'KeyL',
+            'RStick': 'KeyH'
+        };
+
+        function saveServers() {
+            localStorage.setItem('ryu_servers', JSON.stringify(servers));
+        }
+
+        function renderServers() {
+            serverListEl.innerHTML = '';
+            servers.forEach((addr, index) => {
+                const item = document.createElement('div');
+                item.className = 'server-item';
+                item.setAttribute('data-addr', addr);
+                item.innerHTML = `
+                    <div class="server-info">
+                        <div class="server-addr">${addr}</div>
+                        <div class="server-status" id="status-${index}">
+                            <div class="status-dot status-checking"></div>
+                            <span>Checking...</span>
+                        </div>
+                    </div>
+                    <div class="server-actions">
+                        <button class="btn-remove" data-index="${index}">×</button>
+                    </div>
+                `;
+                item.onclick = (e) => {
+                    if (e.target.tagName !== 'BUTTON') connectToServer(addr);
+                };
+                serverListEl.appendChild(item);
+                checkStatus(addr, index);
+            });
+        }
+
+        async function checkStatus(addr, index) {
+            const statusEl = document.getElementById(`status-${index}`);
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                const resp = await fetch(`${location.protocol}//${addr}/`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (resp.ok) {
+                    statusEl.innerHTML = '<div class="status-dot status-online"></div><span>Online</span>';
+                } else {
+                    throw new Error();
+                }
+            } catch {
+                statusEl.innerHTML = '<div class="status-dot status-offline"></div><span>Offline</span>';
+            }
+        }
+
+        addServerBtn.onclick = () => {
+            const addr = newServerInput.value.trim();
+            if (addr && !servers.includes(addr)) {
+                servers.push(addr);
+                saveServers();
+                renderServers();
+                newServerInput.value = '';
+            }
+        };
+
+        serverListEl.onclick = (e) => {
+            if (e.target.classList.contains('btn-remove')) {
+                const index = parseInt(e.target.getAttribute('data-index'));
+                servers.splice(index, 1);
+                saveServers();
+                renderServers();
+            }
+        };
+
+        function connectToServer(addr) {
+            console.log('Connecting to', addr);
+            currentServer = addr;
+            serverManager.style.display = 'none';
+            streamContainer.classList.add('visible');
+            streamContainer.style.display = 'block';
+
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+
+            initWS(addr);
+            recalcFitRect();
+        }
+
+        disconnectBtn.onclick = () => {
+            if (ws) ws.close();
+            ws = null;
+            streamContainer.style.display = 'none';
+            streamContainer.classList.remove('visible');
+            serverManager.style.display = 'flex';
+            renderServers();
+        };
+
+        // --- WebSocket and Stream Handling ---
+
+        function initWS(addr) {
+            ws = new WebSocket(`${location.protocol == 'https:' ? 'wss' : 'ws'}://${addr}/ws`);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = () => {
+                console.log('Connected to', addr);
+            };
+
+            ws.onmessage = (e) => {
+                if (!(e.data instanceof ArrayBuffer)) return;
+                const view = new DataView(e.data);
+                const tag = view.getUint8(0);
+
+                if (tag === 0x01) handleH264(e.data);
+                else if (tag === 0x03) handleMJPEG(e.data);
+                else if (tag === 0x02) handleAudio(e.data);
+                else if (tag === 0x04) handleControl(e.data);
+            };
+
+            ws.onclose = () => {
+                console.log('Disconnected');
+                if (streamContainer.style.display !== 'none') disconnectBtn.click();
+            };
+        }
+
+        function handleControl(data) {
+            const json = JSON.parse(new TextDecoder().decode(data.slice(1)));
+            if (json.action === 'keymap') {
+                console.log('Received keymap from server:', json.map);
+                for (let btn in json.map) {
+                    if (json.map[btn]) keyMap[btn] = json.map[btn];
+                }
+                updateLookup();
+                renderTable();
+            } else if (json.action === 'swkbd_request') {
+                showSwkbd(json);
+            } else if (json.action === 'swkbd_closed') {
+                hideSwkbd();
+            }
+        }
+
+        function handleH264(data) {
+            if (!useH264) {
+                useH264 = true;
+                if (streamImage) streamImage.remove();
+                streamImage = null;
+                streamCanvas.style.display = 'block';
+                initVideoDecoder();
+            }
+            const view = new DataView(data);
+            const isKeyFrame = view.getUint8(1) !== 0;
+            const chunk = new EncodedVideoChunk({
+                type: isKeyFrame ? 'key' : 'delta',
+                timestamp: performance.now(),
+                data: new Uint8Array(data, 2)
+            });
+            videoDecoder.decode(chunk);
+        }
+
+        function initVideoDecoder() {
+            const canvas = document.getElementById('stream-canvas');
+            const ctx = canvas.getContext('2d');
+            videoDecoder = new VideoDecoder({
+                output: (frame) => {
+                    if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
+                        canvas.width = frame.displayWidth;
+                        canvas.height = frame.displayHeight;
+                    }
+                    ctx.drawImage(frame, 0, 0);
+                    frame.close();
+                    updateStreamDimensions();
+                },
+                error: (e) => console.error(e)
+            });
+            videoDecoder.configure({ codec: 'avc1.42E01E', optimizeForLatency: true });
+        }
+
+        function handleMJPEG(data) {
+            if (useH264) {
+                useH264 = false;
+                streamCanvas.style.display = 'none';
+            }
+            if (!streamImage) {
+                streamImage = document.createElement('img');
+                streamImage.id = 'stream-image';
+                streamImage.draggable = false;
+                streamImage.addEventListener('pointerdown', e => handlePointerEvent(e, true));
+                streamImage.addEventListener('pointermove', e => handlePointerEvent(e, true));
+                streamImage.addEventListener('pointerup', endPointer);
+                streamImage.addEventListener('pointercancel', endPointer);
+                streamImage.addEventListener('lostpointercapture', endPointer);
+                streamContainer.prepend(streamImage);
+            }
+            if (streamImage.style.display === 'none') streamImage.style.display = 'block';
+
+            const blob = new Blob([data.slice(1)], { type: 'image/jpeg' });
+            const url = URL.createObjectURL(blob);
+            const oldUrl = streamImage.src;
+            streamImage.src = url;
+            streamImage.onload = () => {
+                updateStreamDimensions();
+                if (oldUrl && oldUrl.startsWith('blob:')) URL.revokeObjectURL(oldUrl);
+            };
+        }
+
+        function handleAudio(data) {
+            const pcm16 = new Int16Array(data, 2);
+            const frameCount = pcm16.length / CHANNELS;
+            const audioBuffer = audioCtx.createBuffer(CHANNELS, frameCount, SAMPLE_RATE);
+            for (let channel = 0; channel < CHANNELS; channel++) {
+                const channelData = audioBuffer.getChannelData(channel);
+                for (let i = 0; i < frameCount; i++) channelData[i] = pcm16[i * CHANNELS + channel] / 32768.0;
+            }
+            const source = audioCtx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioCtx.destination);
+            const currentTime = audioCtx.currentTime;
+            if (nextStartTime < currentTime) nextStartTime = currentTime + 0.005;
+            source.start(nextStartTime);
+            nextStartTime += audioBuffer.duration;
+        }
+
+        // --- Input and UI ---
+
+        let revMap = {};
+        function updateLookup() {
+            revMap = {};
+            for (let btn in keyMap) {
+                if (keyMap[btn]) {
+                    if (!revMap[keyMap[btn]]) revMap[keyMap[btn]] = [];
+                    revMap[keyMap[btn]].push(btn);
+                }
+            }
+        }
+
+        const sendInput = (action, key) => {
+            if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ action, key }));
+        };
+
+        // --- Touch / Pointer Handling ---
+
+        function recalcFitRect() {
+            const vw = Math.max(1, window.innerWidth);
+            const vh = Math.max(1, window.innerHeight);
+            const videoWidth = renderState.videoWidth || 1280;
+            const videoHeight = renderState.videoHeight || 720;
+            const scale = Math.min(vw / videoWidth, vh / videoHeight);
+            const dw = videoWidth * scale;
+            const dh = videoHeight * scale;
+            const dx = (vw - dw) / 2;
+            const dy = (vh - dh) / 2;
+            renderState.drawnWidth = dw;
+            renderState.drawnHeight = dh;
+            renderState.offsetX = dx;
+            renderState.offsetY = dy;
+        }
+
+        function updateStreamDimensions() {
+            let w, h;
+            if (useH264) {
+                w = streamCanvas.width || renderState.videoWidth || 1280;
+                h = streamCanvas.height || renderState.videoHeight || 720;
+            } else if (streamImage) {
+                w = streamImage.naturalWidth || renderState.videoWidth || 1280;
+                h = streamImage.naturalHeight || renderState.videoHeight || 720;
+            } else return;
+            if (w > 0 && h > 0) {
+                renderState.videoWidth = w;
+                renderState.videoHeight = h;
+                recalcFitRect();
+            }
+        }
+
+        function getPointerCoords(clientX, clientY) {
+            const left = renderState.offsetX, top = renderState.offsetY;
+            const x = clientX, y = clientY;
+            if (x < left || x > left + renderState.drawnWidth || y < top || y > top + renderState.drawnHeight) return null;
+            return {
+                x: Math.max(0, Math.min(1, (x - left) / renderState.drawnWidth)),
+                y: Math.max(0, Math.min(1, (y - top) / renderState.drawnHeight))
+            };
+        }
+
+        const activePointers = new Set();
+        function readClientPoint(e) {
+            if (typeof e.clientX === 'number') return { x: e.clientX, y: e.clientY };
+            if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            return null;
+        }
+
+        function handlePointer(e, down) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            const pt = readClientPoint(e);
+            if (!pt) return;
+            const coords = getPointerCoords(pt.x, pt.y);
+            if (!coords) return;
+            ws.send(JSON.stringify({ action: 'touch', x: coords.x, y: coords.y, down }));
+        }
+
+        function handlePointerEvent(e, down) {
+            if (e.pointerType === 'mouse' && down && e.button !== 0) return;
+            if (down) {
+                activePointers.add(e.pointerId);
+                try { e.target.setPointerCapture(e.pointerId); } catch {}
+            }
+            handlePointer(e, down);
+        }
+
+        function endPointer(e) {
+            activePointers.delete(e.pointerId);
+            handlePointer(e, false);
+        }
+
+        streamCanvas.addEventListener('pointerdown', e => handlePointerEvent(e, true));
+        streamCanvas.addEventListener('pointermove', e => handlePointerEvent(e, true));
+        streamCanvas.addEventListener('pointerup', endPointer);
+        streamCanvas.addEventListener('pointercancel', endPointer);
+        streamCanvas.addEventListener('lostpointercapture', endPointer);
+        window.addEventListener('resize', recalcFitRect);
+
+        window.addEventListener('keydown', e => {
+            if (document.activeElement.tagName === 'INPUT') return;
+            if (revMap[e.code]) {
+                e.preventDefault();
+                revMap[e.code].forEach(btn => sendInput('down', btn));
+            }
+        });
+
+        window.addEventListener('keyup', e => {
+            if (document.activeElement.tagName === 'INPUT') return;
+            if (revMap[e.code]) {
+                e.preventDefault();
+                revMap[e.code].forEach(btn => sendInput('up', btn));
+            }
+        });
+
+        // --- Mobile Controls and SWKBD Logic ---
+
+        function initMobileControls() {
+            document.querySelectorAll('.mobile-btn').forEach(btn => {
+                const key = btn.getAttribute('data-key');
+                let isDown = false;
+
+                const down = (e) => {
+                    e.preventDefault();
+                    if (isDown) return;
+                    isDown = true;
+                    try { btn.setPointerCapture(e.pointerId); } catch {}
+                    sendInput('down', key);
+                };
+
+                const up = (e) => {
+                    e.preventDefault();
+                    if (!isDown) return;
+                    isDown = false;
+                    sendInput('up', key);
+                };
+
+                btn.addEventListener('pointerdown', down);
+                btn.addEventListener('pointerup', up);
+                btn.addEventListener('pointercancel', up);
+                btn.addEventListener('lostpointercapture', up);
+            });
+
+            const maxDiff = 60;
+            const threshold = 0.3;
+
+            function setupJoystick(id, prefix) {
+                const joystick = document.getElementById(id);
+                const knob = joystick.querySelector('.joystick-knob');
+                let activePointerId = null;
+                let currentDirs = new Set();
+                const neutral = () => {
+                    knob.style.transform = 'translate(-50%, -50%)';
+                    currentDirs.forEach(d => sendInput('up', d));
+                    currentDirs.clear();
+                };
+
+                function updateFromPoint(clientX, clientY) {
+                    const rect = joystick.getBoundingClientRect();
+                    const dx = clientX - (rect.left + rect.width / 2);
+                    const dy = clientY - (rect.top + rect.height / 2);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const moveX = dist > maxDiff ? dx * maxDiff / dist : dx;
+                    const moveY = dist > maxDiff ? dy * maxDiff / dist : dy;
+
+                    knob.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+
+                    const nx = moveX / maxDiff, ny = moveY / maxDiff;
+                    const newDirs = new Set();
+                    if (ny < -threshold) newDirs.add(`${prefix}Up`);
+                    if (ny > threshold) newDirs.add(`${prefix}Down`);
+                    if (nx < -threshold) newDirs.add(`${prefix}Left`);
+                    if (nx > threshold) newDirs.add(`${prefix}Right`);
+
+                    currentDirs.forEach(d => { if (!newDirs.has(d)) sendInput('up', d); });
+                    newDirs.forEach(d => { if (!currentDirs.has(d)) sendInput('down', d); });
+                    currentDirs = newDirs;
+                }
+
+                joystick.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    activePointerId = e.pointerId;
+                    try { joystick.setPointerCapture(e.pointerId); } catch {}
+                    updateFromPoint(e.clientX, e.clientY);
+                });
+
+                joystick.addEventListener('pointermove', (e) => {
+                    if (activePointerId !== e.pointerId) return;
+                    e.preventDefault();
+                    updateFromPoint(e.clientX, e.clientY);
+                });
+
+                const endJoy = (e) => {
+                    if (activePointerId !== e.pointerId) return;
+                    activePointerId = null;
+                    neutral();
+                };
+
+                joystick.addEventListener('pointerup', endJoy);
+                joystick.addEventListener('pointercancel', endJoy);
+                joystick.addEventListener('lostpointercapture', endJoy);
+            }
+
+            setupJoystick('joystickL', 'LStick');
+            setupJoystick('joystickR', 'RStick');
+        }
+
+        document.getElementById('toggleMobile').onclick = () => mobileControlsEl.classList.toggle('visible');
+        document.getElementById('toggleControls').onclick = () => controlsPanelEl.classList.toggle('visible');
+        document.getElementById('hideControls').onclick = () => controlsPanelEl.classList.remove('visible');
+
+        function renderTable() {
+            const body = document.getElementById('keyConfigBody');
+            body.innerHTML = '';
+            for (let btn in keyMap) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${btn}</td><td><input class="key-input" value="${keyMap[btn]}" readonly /></td>`;
+                const input = tr.querySelector('input');
+                input.onkeydown = (e) => {
+                    e.preventDefault();
+                    keyMap[btn] = e.code === 'Escape' ? '' : e.code;
+                    updateLookup();
+                    renderTable();
+                };
+                body.appendChild(tr);
+            }
+        }
+
+        // SWKBD
+        let activeSwkbdMsg = null;
+        function showSwkbd(msg) {
+            activeSwkbdMsg = msg;
+            document.getElementById('swkbd-header').innerText = msg.header || 'Software Keyboard';
+            document.getElementById('swkbd-guide').innerText = msg.guide || '';
+            document.getElementById('swkbd-input').value = msg.initial || '';
+            document.getElementById('swkbd-overlay').classList.add('visible');
+            setTimeout(() => document.getElementById('swkbd-input').focus(), 50);
+        }
+        function hideSwkbd() {
+            document.getElementById('swkbd-overlay').classList.remove('visible');
+            activeSwkbdMsg = null;
+        }
+        document.getElementById('swkbd-submit').onclick = () => {
+            if (!activeSwkbdMsg) return;
+            ws.send(JSON.stringify({ action: 'swkbd_submit', id: activeSwkbdMsg.id, kind: activeSwkbdMsg.kind, text: document.getElementById('swkbd-input').value }));
+            hideSwkbd();
+        };
+        document.getElementById('swkbd-cancel').onclick = () => {
+            if (!activeSwkbdMsg) return;
+            ws.send(JSON.stringify({ action: 'swkbd_cancel', id: activeSwkbdMsg.id, kind: activeSwkbdMsg.kind }));
+            hideSwkbd();
+        };
+
+        renderServers();
+        initMobileControls();
+        updateLookup();
+        renderTable();
+    </script>
+</body>
+</html>
