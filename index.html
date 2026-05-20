@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Ryujinx Remote Client</title>
     <style>
         :root {
@@ -17,7 +17,8 @@
             --success: #2ecc71;
         }
 
-        html, body {
+        html,
+        body {
             margin: 0;
             width: 100%;
             height: 100%;
@@ -46,10 +47,14 @@
             border-radius: 16px;
             width: min(90vw, 600px);
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
 
-        h1 { margin-top: 0; font-weight: 300; letter-spacing: 1px; }
+        h1 {
+            margin-top: 0;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
 
         .server-input-group {
             display: flex;
@@ -75,9 +80,15 @@
             transition: opacity 0.2s, transform 0.1s;
         }
 
-        button:active { transform: scale(0.98); }
+        button:active {
+            transform: scale(0.98);
+        }
 
-        .btn-add { background: var(--accent); color: #fff; padding: 0 20px; }
+        .btn-add {
+            background: var(--accent);
+            color: #fff;
+            padding: 0 20px;
+        }
 
         .server-list {
             display: flex;
@@ -97,20 +108,66 @@
             transition: border-color 0.2s;
         }
 
-        .server-item:hover { border-color: var(--accent); }
+        .server-item:hover {
+            border-color: var(--accent);
+        }
 
-        .server-info { display: flex; flex-direction: column; gap: 4px; }
-        .server-addr { font-weight: 600; font-size: 1.05rem; }
-        .server-status { font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
+        .server-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
 
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .status-online { background: var(--success); box-shadow: 0 0 8px var(--success); }
-        .status-offline { background: var(--danger); }
-        .status-checking { background: #888; }
+        .server-addr {
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
 
-        .server-actions { display: flex; gap: 8px; }
-        .btn-remove { background: #333; color: #ff8888; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-        .btn-remove:hover { background: #442222; }
+        .server-status {
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-online {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .status-offline {
+            background: var(--danger);
+        }
+
+        .status-checking {
+            background: #888;
+        }
+
+        .server-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-remove {
+            background: #333;
+            color: #ff8888;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .btn-remove:hover {
+            background: #442222;
+        }
 
         /* --- Stream View Styles --- */
         #stream-container {
@@ -125,7 +182,8 @@
             display: block !important;
         }
 
-        #stream-canvas, #stream-image {
+        #stream-canvas,
+        #stream-image {
             position: absolute;
             inset: 0;
             width: 100%;
@@ -140,12 +198,12 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 600;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.6);
             color: #fff;
             padding: 6px 12px;
             border-radius: 20px;
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             pointer-events: auto;
             font-size: 0.85rem;
             white-space: nowrap;
@@ -160,6 +218,7 @@
             user-select: none;
             -webkit-user-select: none;
             display: none;
+            touch-action: manipulation;
         }
 
         .mobile-controls.visible {
@@ -218,7 +277,7 @@
             align-items: center;
             justify-content: center;
             font-size: 0.7rem;
-            color: rgba(255,255,255,0.5);
+            color: rgba(255, 255, 255, 0.5);
             font-weight: bold;
         }
 
@@ -228,7 +287,7 @@
             height: 36px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 50%;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             z-index: 551;
             display: flex;
             align-items: center;
@@ -237,8 +296,16 @@
             color: #fff;
             pointer-events: auto;
         }
-        .stick-click-l { top: -20px; right: -10px; }
-        .stick-click-r { top: -20px; left: -10px; }
+
+        .stick-click-l {
+            top: -20px;
+            right: -10px;
+        }
+
+        .stick-click-r {
+            top: -20px;
+            left: -10px;
+        }
 
         .dpad-container {
             position: absolute;
@@ -248,11 +315,35 @@
             height: 120px;
         }
 
-        .dpad-btn { width: 40px; height: 40px; border-radius: 8px; }
-        .dpad-up { top: 0; left: 50%; transform: translateX(-50%); }
-        .dpad-down { bottom: 0; left: 50%; transform: translateX(-50%); }
-        .dpad-left { left: 0; top: 50%; transform: translateY(-50%); }
-        .dpad-right { right: 0; top: 50%; transform: translateY(-50%); }
+        .dpad-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+        }
+
+        .dpad-up {
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .dpad-down {
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .dpad-left {
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .dpad-right {
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
 
         .abxy-container {
             position: absolute;
@@ -262,7 +353,10 @@
             height: 140px;
         }
 
-        .abxy-btn { width: 46px; height: 46px; }
+        .abxy-btn {
+            width: 46px;
+            height: 46px;
+        }
 
         .joystick-container-r {
             position: absolute;
@@ -276,15 +370,57 @@
             pointer-events: auto;
             touch-action: none;
         }
-        .btn-a { right: 0; top: 50%; transform: translateY(-50%); }
-        .btn-b { bottom: 0; left: 50%; transform: translateX(-50%); }
-        .btn-x { top: 0; left: 50%; transform: translateX(-50%); }
-        .btn-y { left: 0; top: 50%; transform: translateY(-50%); }
 
-        .shoulder-container-l { position: absolute; top: 60px; left: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .shoulder-container-r { position: absolute; top: 60px; right: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .btn-a {
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
 
-        .shoulder-btn { width: 50px; height: 38px; border-radius: 10px; font-size: 0.85rem; position: static; transform: none; }
+        .btn-b {
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .btn-x {
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .btn-y {
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .shoulder-container-l {
+            position: absolute;
+            top: 60px;
+            left: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .shoulder-container-r {
+            position: absolute;
+            top: 60px;
+            right: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .shoulder-btn {
+            width: 50px;
+            height: 38px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            position: static;
+            transform: none;
+        }
 
         .system-container {
             position: absolute;
@@ -296,16 +432,24 @@
             pointer-events: none;
         }
 
-        .system-btn { pointer-events: auto; width: 38px; height: 38px; border-radius: 8px; font-size: 1.1rem; position: static; transform: none; }
+        .system-btn {
+            pointer-events: auto;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            position: static;
+            transform: none;
+        }
 
         .mobile-toggle-btn {
             position: fixed;
             left: 14px;
             bottom: 14px;
             z-index: 560;
-            background: rgba(0,0,0,0.52);
+            background: rgba(0, 0, 0, 0.52);
             color: #fff;
-            border: 1px solid rgba(255,255,255,0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 999px;
             padding: 10px 14px;
             cursor: pointer;
@@ -318,9 +462,9 @@
             right: 14px;
             bottom: 14px;
             z-index: 560;
-            background: rgba(0,0,0,0.52);
+            background: rgba(0, 0, 0, 0.52);
             color: #fff;
-            border: 1px solid rgba(255,255,255,0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 999px;
             padding: 10px 14px;
             cursor: pointer;
@@ -338,20 +482,22 @@
             background: rgba(26, 26, 26, 0.96);
             border: 1px solid #444;
             border-radius: 16px;
-            box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
             backdrop-filter: blur(10px);
             overflow: hidden;
             display: none;
         }
 
-        .floating-controls.visible { display: block; }
+        .floating-controls.visible {
+            display: block;
+        }
 
         .controls-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 12px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .controls-body {
@@ -360,16 +506,58 @@
             max-height: calc(100vh - 150px);
         }
 
-        table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.9rem; }
-        th, td { padding: 8px; border: 1px solid rgba(255,255,255,0.08); text-align: left; }
-        input.key-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.06); color: #fff; border: 1px solid rgba(255,255,255,0.16); border-radius: 6px; padding: 6px; text-align: center; }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+            font-size: 0.9rem;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: left;
+        }
+
+        input.key-input {
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 6px;
+            padding: 6px;
+            text-align: center;
+        }
 
         /* SW Keyboard Modal */
-        #swkbd-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 1000; display: none; }
-        #swkbd-overlay.visible { display: flex; }
-        .swkbd-card { background: #1a1a1a; border: 1px solid #444; border-radius: 16px; padding: 24px; width: min(90vw, 480px); }
+        #swkbd-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        #swkbd-overlay.visible {
+            display: flex;
+        }
+
+        .swkbd-card {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 16px;
+            padding: 24px;
+            width: min(90vw, 480px);
+        }
     </style>
 </head>
+
 <body>
 
     <div id="server-manager">
@@ -433,7 +621,12 @@
             </div>
             <div class="controls-body">
                 <table>
-                    <thead><tr><th>Button</th><th>Key</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Button</th>
+                            <th>Key</th>
+                        </tr>
+                    </thead>
                     <tbody id="keyConfigBody"></tbody>
                 </table>
             </div>
@@ -445,15 +638,27 @@
         <div class="swkbd-card">
             <h2 id="swkbd-header">Software Keyboard</h2>
             <p id="swkbd-guide"></p>
-            <input type="text" id="swkbd-input" style="width:100%; box-sizing:border-box; margin:10px 0; padding:12px; background:#000; border:1px solid #444; color:#fff;" />
+            <input type="text" id="swkbd-input"
+                style="width:100%; box-sizing:border-box; margin:10px 0; padding:12px; background:#000; border:1px solid #444; color:#fff;" />
             <div style="display:flex; justify-content:flex-end; gap:10px;">
                 <button id="swkbd-cancel" style="padding:10px 20px; background:#333; color:#fff;">Cancel</button>
-                <button id="swkbd-submit" style="padding:10px 20px; background:var(--accent); color:#fff;">Submit</button>
+                <button id="swkbd-submit"
+                    style="padding:10px 20px; background:var(--accent); color:#fff;">Submit</button>
             </div>
         </div>
     </div>
 
     <script>
+        // iOS double tap zoom prevention
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (event) => {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
         const serverListEl = document.getElementById('server-list');
         const newServerInput = document.getElementById('new-server-addr');
         const addServerBtn = document.getElementById('add-server-btn');
@@ -788,7 +993,7 @@
             if (e.pointerType === 'mouse' && down && e.button !== 0) return;
             if (down) {
                 activePointers.add(e.pointerId);
-                try { e.target.setPointerCapture(e.pointerId); } catch {}
+                try { e.target.setPointerCapture(e.pointerId); } catch { }
             }
             handlePointer(e, down);
         }
@@ -832,7 +1037,7 @@
                     e.preventDefault();
                     if (isDown) return;
                     isDown = true;
-                    try { btn.setPointerCapture(e.pointerId); } catch {}
+                    try { btn.setPointerCapture(e.pointerId); } catch { }
                     sendInput('down', key);
                 };
 
@@ -888,7 +1093,7 @@
                 joystick.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
                     activePointerId = e.pointerId;
-                    try { joystick.setPointerCapture(e.pointerId); } catch {}
+                    try { joystick.setPointerCapture(e.pointerId); } catch { }
                     updateFromPoint(e.clientX, e.clientY);
                 });
 
@@ -965,4 +1170,5 @@
         renderTable();
     </script>
 </body>
+
 </html>
